@@ -35,7 +35,8 @@ DEFAULT_PARAMS = dict(
     random_state=42,
     verbosity=-1,
 )
-
+# Pengaturan terpilih dari Step 9 (menimpa DEFAULT_PARAMS)
+BEST_PARAMS = dict(n_estimators=300, num_leaves=4)
 def make_fit_predict_gbm(drop=(), **overrides):
     params = {**DEFAULT_PARAMS, **overrides}
     def fit_predict(tr, va):

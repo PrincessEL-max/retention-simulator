@@ -238,3 +238,34 @@ Di model B, `phone_service` berbobot besar (-0,68) padahal tidak menonjol di EDA
 - **Tanda bahaya:** PR-AUC di atas 0,75 (curiga bocor) atau di bawah 0,55 (curiga rusak) → berhenti dan
   periksa sebelum melapor.
 - **Ujian hanya dijalankan satu kali** (`python -m src.final_eval`, dengan "segel" `reports/test_results.json`).
+
+## 11. Hasil ujian akhir (dibuka <tanggal>, 1.409 pelanggan, churn 26,5%)
+
+| Model | PR-AUC [rentang 95%] | Lift@10% [rentang] | Brier [rentang] |
+|---|---|---|---|
+| Tebakan segmen | 0,527 [0,477-0,571] | 2,21 [2,00-2,61] | 0,1511 [0,1411-0,1605] |
+| Logistik B | 0,682 [0,630-0,728] | 2,93 [2,61-3,27] | 0,1309 [0,1203-0,1412] |
+| LightGBM | 0,686 [0,635-0,733] | 2,88 [2,62-3,26] | 0,1298 [0,1188-0,1400] |
+
+Rentang 95% = acak ulang pelanggan ujian 1.000 kali; ini rentang goyangan, bukan jaminan.
+
+- **Model vs tebakan segmen:** LightGBM +0,161 [0,122-0,203]; Logistik B +0,157 [0,114-0,202];
+  menang di 100% acakan.
+- **LightGBM vs Logistik B:** +0,005 [-0,015 sampai +0,025], lebih baik di 68% acakan. Rentang
+  mencakup nol -> **setara**. LightGBM tetap model utama sesuai aturan yang ditulis sebelum ujian.
+- **Daftar teratas (LightGBM):** menghubungi 20% teratas menangkap 51,6% churner (acak: 20%);
+  10% teratas menangkap 28,6%; 50% teratas menangkap 88,8%.
+- **Peluang vs kenyataan:** rata-rata prediksi 25,8% vs kenyataan 26,5%. Kelompok teratas:
+  prediksi 74,0% vs kenyataan 76,6%. Di empat kelompok teratas prediksi cenderung sedikit di bawah
+  kenyataan (1 sampai 3 poin), masih dalam batas kebetulan (±141 pelanggan per kelompok).
+  Tidak dirapikan ulang sesuai aturan.
+- **Dibanding tebakan sebelum ujian (PR-AUC 0,60-0,70):** sesuai (0,686). Tanda bahaya tidak terpicu.
+- **Catatan:** angka ujian lebih tinggi dari angka validasi silang untuk semua model, termasuk
+  tebakan segmen (+0,046), yang menunjukkan kelompok ujian kebetulan sedikit lebih mudah. Angka
+  ujian dilaporkan sebagai angka resmi; selisih antar model lebih bisa dipercaya daripada angka mentahnya.
+- **Tidak ada penyetelan ulang setelah ujian dibuka.**
+
+## 12. Belum dilakukan
+- [ ] Penjelasan model dengan SHAP (Step 12)
+- [ ] `scored.parquet` untuk Minggu 3 (Step 12)
+- [ ] `model_card.md` (Step 12)
