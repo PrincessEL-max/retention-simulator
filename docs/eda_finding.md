@@ -1,6 +1,6 @@
 # Temuan EDA: Retention Campaign Simulator
 
-> Dibuat: <isi tanggal>. Sumber: tabel `telco.features` (7.043 pelanggan), query di `sql/03_eda.sql`.
+> Dibuat: 10 Oktober 2026. Sumber: tabel `telco.features` (7.043 pelanggan), query di `sql/03_eda.sql`.
 > Semua temuan bersifat **asosiasi**, bukan sebab-akibat. Data berupa snapshot tanpa dimensi waktu.
 > Angka rupiah adalah hasil rescale ke ARPU Rp 46.000 (lihat `assumptions.md`), jadi **ilustratif, bukan data operator**.
 

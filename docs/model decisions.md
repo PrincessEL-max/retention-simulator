@@ -265,7 +265,230 @@ Rentang 95% = acak ulang pelanggan ujian 1.000 kali; ini rentang goyangan, bukan
   ujian dilaporkan sebagai angka resmi; selisih antar model lebih bisa dipercaya daripada angka mentahnya.
 - **Tidak ada penyetelan ulang setelah ujian dibuka.**
 
-## 12. Belum dilakukan
-- [ ] Penjelasan model dengan SHAP (Step 12)
-- [ ] `scored.parquet` untuk Minggu 3 (Step 12)
-- [ ] `model_card.md` (Step 12)
+## 12. Skor untuk Minggu 3 (`data/scored.parquet`)
+
+Tujuan: peluang churn untuk semua 7.043 pelanggan yang **tidak pernah dilihat modelnya**, supaya hitungan uang
+tidak terlalu optimis.
+
+| Kelompok | Asal skor |
+|---|---|
+| Data belajar (5.634) | Validasi silang 5 kelompok: tiap pelanggan diskor oleh model yang tidak belajar dari kelompoknya (model dilatih pada 80% data belajar, ±4.507 pelanggan) |
+| Data ujian (1.409) | Skor tersimpan dari ujian akhir (`data/test_pred.parquet`); model dilatih pada seluruh data belajar. **Tidak ada ujian ulang** |
+
+Pemeriksaan (semua lolos):
+
+| Cek | Hasil |
+|---|---|
+| Data belajar: PR-AUC / lift@10% / brier | 0,657 / 2,83 / 0,1348 (persis sama dengan Step 9 dan 10) |
+| Data ujian: PR-AUC | 0,686 (persis sama dengan ujian akhir) |
+| Rata-rata prediksi vs kenyataan | 0,264 vs 0,265 |
+| Bentuk tabel | 7.043 baris, 18 kolom, ID unik, tidak ada nilai kosong, semua peluang di antara 0 dan 1 |
+
+Perbedaan kecil yang diketahui: model untuk pelanggan data belajar dilatih pada 80% data belajar, sedangkan model
+untuk pelanggan data ujian pada 100%. Dampaknya dianggap kecil dan tidak diukur.
+
+## 13. Penjelasan model (SHAP)
+
+Model yang dijelaskan = model yang sama dengan ujian akhir (dilatih pada data belajar), pada semua 7.043 pelanggan.
+Cek penjumlahan (nilai dasar + poin risiko = keluaran model): selisih terbesar 7,5 × 10⁻¹⁵, jadi sah.
+
+**Pengaruh rata-rata per fitur** (makin besar makin sering menggeser skor):
+
+| Peringkat | Fitur | Pengaruh |
+|---|---|---|
+| 1 | contract | 0,612 |
+| 2 | tenure_months | 0,401 |
+| 3 | internet_service | 0,342 |
+| 4 | is_echeck | 0,159 |
+| 5 | total_charges | 0,128 |
+| 6-11 | paperless_billing 0,120; n_streaming 0,119; is_month_to_month 0,116; monthly_charge 0,104; avg_monthly_hist 0,090; n_protection 0,088 | |
+
+**Arah (rata-rata poin risiko per kategori):** kontrak bulanan +0,59, 1 tahun -0,27, 2 tahun -0,95; fiber +0,36,
+DSL -0,17, tanpa internet -0,58. Sesuai temuan EDA untuk empat faktor teratas.
+
+**Pelanggan contoh:** 5178-LMXOP (peluang 0,90): tenure 1 bulan (+0,93), bulanan (+0,71), fiber (+0,38), e-check
+(+0,19), tanpa proteksi (+0,15). 2694-CIUMO (peluang 0,50): bulanan (+0,63) dan fiber (+0,43) menaikkan; bukan
+e-check (-0,14) menurunkan.
+
+**Hal yang perlu dicatat:**
+- **Fitur kembar membagi pengaruh** (contract dan is_month_to_month; internet_service, is_fiber, has_internet;
+  is_echeck dan payment_method). `payment_method` terlihat hampir nol (e-check hanya +0,04) karena pengaruhnya
+  tercatat di `is_echeck`. Peringkat per fitur mengecilkan pengaruh gabungan sebuah informasi.
+- **Perbedaan dari EDA:** `n_streaming` (0,119) lebih berpengaruh daripada `n_protection` (0,088), padahal di EDA
+  streaming hampir tidak berhubungan dengan churn. Cek lanjutan pada pelanggan fiber dan bulanan (n = 2.128):
+
+| Jumlah | Churn menurut proteksi | Churn menurut streaming |
+|---|---|---|
+| 0 | 65,2% (n = 814) | 52,5% (n = 793) |
+| 1 | 53,1% (n = 737) | 54,1% (n = 673) |
+| 2 | 45,4% (n = 432) | 57,7% (n = 662) |
+| 3 | 30,2% (n = 126) | - |
+| 4 | 31,6% (n = 19, terlalu sedikit) | - |
+
+  Proteksi tetap menurunkan churn dalam kelompok yang sama; streaming tidak (malah sedikit naik, di perbatasan
+  kebetulan). Penurunan ringan streaming di EDA sebagian adalah efek komposisi. Lama berlangganan dan tagihan
+  belum dikendalikan. **Ini pengamatan tentang model, bukan temuan bisnis.**
+- **Hampir tak berpengaruh:** has_partner (0,000), auto_pay (0,001), n_family (0,003), n_addons (0,011).
+  Kandidat dicabut di versi berikutnya. **Tidak diubah sekarang** karena data ujian sudah terpakai.
+- Peringatan dari `shap` soal format keluaran (daftar `ndarray`) tidak berbahaya; kode menangani kedua format.
+
+Keputusan turunan: untuk mengukur keterlibatan pelanggan di segmentasi (Step 16), pakai **jumlah proteksi**,
+bukan total add-on.
+
+## 14. Audit kelompok lansia (pada `scored.parquet`)
+
+| Kelompok | Jumlah | Prediksi | Kenyataan | Selisih | Di 20% skor teratas |
+|---|---|---|---|---|---|
+| Non-lansia | 5.901 | 23,8% | 23,6% | +0,2 poin | 17,0% |
+| Lansia | 1.142 | 39,9% | 41,7% | -1,8 poin | 35,6% |
+
+- Prediksi akurat di kedua kelompok; pada lansia sedikit **konservatif** (meremehkan risiko 1,8 poin, dalam batas
+  kebetulan untuk n = 1.142).
+- Lansia 16,2% dari pelanggan, tetapi ±29% dari kelompok skor teratas (2,1 kali lebih sering terpilih, sementara
+  churn mereka 1,8 kali lebih tinggi). Sejalan dengan perbedaan risiko dasar; penyebab selisih kecil antara 2,1 dan
+  1,8 tidak diselidiki.
+- Batas pemeriksaan: hanya akurasi prediksi per kelompok dan tingkat keterpilihan untuk satu atribut. **Bukan
+  jaminan keadilan.** Dampak promo pada kelompok ini diperiksa lagi saat daftar target terbentuk (Step 16).
+- **Tidak ada perubahan model berdasarkan hasil ini.**
+
+## 15. Lapisan nilai bisnis (`src/value.py`)
+
+Semua asumsi dikumpulkan di `Params` (nilai awal sama dengan `docs/assumptions.md`):
+
+| Parameter | Nilai |
+|---|---|
+| Margin kontribusi | 40% |
+| Horizon | 12 bulan |
+| Save rate (promo menahan calon churner) | 25% (**asumsi**, belum dibuktikan) |
+| Biaya kontak | Rp 2.000 per orang |
+| Biaya insentif | Rp 10.000 per penerima |
+| Take-up insentif | 30% |
+| Biaya efektif per orang yang dihubungi | Rp 5.000 (2.000 + 0,3 × 10.000) |
+
+```
+nilai pelanggan (CLV) = tagihan bulanan × margin × horizon
+untung bersih diharapkan (EV) = peluang pergi × save rate × CLV − biaya efektif
+titik impas peluang = biaya efektif ÷ (save rate × CLV)
+```
+
+Hitungan tangan lolos (tagihan Rp 46.000, peluang 50%): CLV Rp 220.800; nilai diselamatkan Rp 27.600;
+EV Rp 22.600; titik impas 9,1%.
+
+**Hasil pada 7.043 pelanggan:**
+
+| Hasil | Nilai |
+|---|---|
+| CLV rata-rata | Rp 220.800 |
+| Titik impas peluang | rata-rata 12,8%, tengah 8,3%, rentang 4,9% sampai 32,1% |
+| Pelanggan dengan EV > 0 | 4.195 dari 7.043 (59,6%) |
+| Biaya menghubungi semua | Rp 35.215.000 |
+| Biaya menghubungi yang layak saja | Rp 20.975.000 |
+| Total untung bersih diharapkan (EV > 0) | Rp 92.367.154 (**di bawah asumsi save rate 25%**) |
+
+**Layak dihubungi menurut kelompok:** kontrak bulanan 85,7% (n = 3.875); 1 tahun 44,8% (n = 1.473); 2 tahun 12,7%
+(n = 1.695, sekitar 215 orang layak karena tagihan besar dan peluang pergi relatif tinggi, yang tidak bisa
+ditemukan tebakan segmen). Lansia 83,8% (n = 1.142) vs non-lansia 54,9%.
+
+**Dibanding EV kasar di EDA:** hampir sama untuk segmen bulanan dan 2 tahun. Dua perbedaan:
+- Bulanan 48+ bulan: EV naik dari 14.765 ke 19.026 karena model terlalu pesimis di segmen ini (prediksi 30,9% vs
+  kenyataan 25,8%, n = 357). Untung segmen ini mungkin dilebih-lebihkan. Model tidak diubah.
+- Segmen 1 tahun berada di sekitar titik impas dan kecil (n = 32 sampai 199); tanda untung-rugi berbalik untuk
+  12-23 bulan (+1.014 menjadi -861) dan 0-5 bulan (+721 menjadi -1.472). **Tidak dijadikan kesimpulan per segmen.**
+
+**Asumsi struktural baru:**
+- Pelanggan yang diselamatkan diasumsikan bertahan penuh 12 bulan dengan margin tetap (tanpa diskon waktu dan tanpa
+  risiko pergi lagi). Arahnya bisa menaikkan atau menurunkan nilai.
+- Budget = pengeluaran yang diharapkan (biaya kontak + take-up × insentif), bukan pengeluaran pasti.
+- Skor model sedikit konservatif di kelompok teratas (1-3 poin pada ujian akhir), sehingga untung diharapkan
+  cenderung sedikit diremehkan.
+- Skala budget: **Opsi A**, rentang disesuaikan dengan ukuran dataset (±Rp 1 juta sampai 40 juta). Menarget semua
+  = Rp 35,2 juta.
+
+## 16. Perbandingan strategi pada budget yang sama (`src/strategies.py`)
+
+| Cara | Memilih siapa |
+|---|---|
+| Acak | Nilai rata-rata dari semua kemungkinan undian acak (tanpa goyangan undian) |
+| Urut risiko | Peluang pergi tertinggi dulu (tanpa rem; bisa menghubungi yang rugi) |
+| Urut untung | EV tertinggi dulu, **berhenti bila EV ≤ 0** |
+
+"Hubungi semua" bukan cara terpisah; itu ujung kurva acak pada budget Rp 35,2 juta.
+
+**Dua cara menilai:** (1) *perkiraan model* (EV dari peluang model; "urut untung" pasti menang di sini, jadi
+bukan bukti), (2) *kenyataan di data* (pelanggan yang benar-benar pergi × save rate × CLV − biaya; tidak bergantung
+pada angka peluang model, tetapi **masih memakai asumsi save rate yang sama**).
+
+Pemeriksaan lolos: dua cara hitung (`curve` dan `select_targets`) cocok; pada budget penuh, "urut untung" =
+4.195 orang, biaya Rp 20.975.000, perkiraan Rp 92.367.154 (sama dengan bagian 15).
+
+**Untung bersih menurut kenyataan di data (Rp juta):**
+
+| Budget | Acak | Urut risiko | Urut untung |
+|---|---|---|---|
+| Rp 5 juta | 11,8 | 45,1 | **47,7** |
+| Rp 10 juta | 23,7 | 72,2 | **74,7** |
+| Rp 15 juta | 35,5 | 85,0 | **88,0** |
+| Rp 21 juta | 49,7 | 90,9 | **92,7** |
+| Rp 35,2 juta (semua) | 83,4 | 83,4 | **92,7** |
+
+Perkiraan model nyaris sama dengan kenyataan (misalnya Rp 92,4 vs 92,7 juta untuk "urut untung" pada budget
+penuh), jadi peluang model tidak menyesatkan hitungan uang.
+
+**Seberapa pasti selisihnya** (acak ulang pelanggan 500 kali; rentang ini hanya mencakup goyangan sampel
+pelanggan, bukan ketidakpastian save rate):
+
+| Perbandingan | Budget | Selisih untung | Rentang 95% |
+|---|---|---|---|
+| Urut untung vs urut risiko | Rp 10 juta | +Rp 2,39 juta | +0,95 sampai +3,86 |
+| Urut untung vs urut risiko | Rp 21 juta | +Rp 1,68 juta | +0,75 sampai +2,75 |
+| Urut untung vs acak | Rp 10 juta | +Rp 51,0 juta | +48,5 sampai +53,6 |
+| Urut untung vs acak | Rp 21 juta | +Rp 42,9 juta | +41,1 sampai +44,9 |
+| Hubungi yang layak vs hubungi semua | Rp 35,2 juta | +Rp 9,27 juta | +8,36 sampai +10,14 |
+
+**Kesimpulan yang boleh diklaim (di bawah asumsi save rate 25%):**
+1. Memilih pelanggan jauh lebih untung daripada acak (±3,2 kali pada Rp 10 juta; ±4 kali pada Rp 5 juta).
+2. **Berhenti di waktu yang tepat adalah penghematan terbesar:** menghubungi hanya yang layak menghasilkan
+   Rp 92,7 juta dengan biaya Rp 21,0 juta, dibanding Rp 83,4 juta dengan biaya Rp 35,2 juta (selisih biaya
+   Rp 14,2 juta; untung bersih per Rp 1 biaya ±4,4 vs ±2,4). Pelanggan yang layak mencakup 1.714 dari 1.869
+   pelanggan yang akhirnya pergi (91,7%).
+3. "Urut untung" lebih baik dari "urut risiko", tetapi **kecil** (±2 sampai 6%): nyata menurut rentang 95%,
+   namun tidak besar. Selisih terbesar ada pada rem "berhenti bila EV ≤ 0".
+4. Menambah budget makin tidak menguntungkan: tambahan untung Rp 27,0 juta (5→10), Rp 13,3 juta (10→15),
+   Rp 4,7 juta (15→21), dan Rp 0 di atas ±Rp 21 juta.
+5. "Urut risiko" menangkap lebih banyak pelanggan yang pergi (1.213 vs 1.161 pada Rp 10 juta) tetapi
+   menghasilkan lebih sedikit uang: pelanggan paling berisiko belum tentu yang paling layak diselamatkan.
+
+**Pemeriksaan hanya data ujian (1.409 pelanggan; untung menurut kenyataan, Rp juta):**
+
+| Budget | Acak | Urut risiko | Urut untung |
+|---|---|---|---|
+| Rp 1,0 juta | 2,31 | 9,34 | 9,64 |
+| Rp 2,0 juta | 4,62 | 14,66 | 14,68 |
+| Rp 3,0 juta | 6,92 | 16,92 | 17,22 |
+| Rp 4,2 juta | 9,69 | 17,80 | 18,00 |
+| Rp 7,0 juta (semua) | 16,26 | 16,26 | 18,00 |
+
+Arah sama dengan hasil seluruh pelanggan. Selisih "untung" vs "risiko" pada budget kecil (Rp 0,02 sampai 0,30 juta)
+terlalu kecil untuk dibedakan pada data sekecil ini; efek berhenti di waktu yang tepat konsisten (Rp 18,0 vs
+16,3 juta pada budget penuh).
+
+## 17. Catatan jujur tambahan
+
+- **Semua angka rupiah adalah perkiraan di bawah asumsi save rate 25%**, yang belum dibuktikan A/B test. Tulis
+  sebagai "di bawah asumsi ..., perkiraan untung bersih Rp X juta", bukan "proyek ini menghasilkan Rp X juta".
+- "Kenyataan di data" membuktikan **siapa yang pergi**, bukan **siapa yang bisa dibujuk bertahan**. Model memprediksi
+  churn, bukan efek promo.
+- Perbandingan strategi memakai seluruh 7.043 pelanggan; skor pelanggan data belajar berasal dari validasi silang
+  yang pengaturannya dipilih dari kelompok yang sama, jadi masih ada sedikit optimisme.
+- Rentang 95% pada bagian 16 hanya mencakup variasi sampel pelanggan. Ketidakpastian asumsi (save rate, biaya,
+  margin) diuji terpisah di Step 15.
+- Angka rupiah memakai ARPU blended Rp 46.000 (bukan ARPU pascabayar), yang mungkin mengecilkan CLV.
+- Dataset bergaya pascabayar; pasar Indonesia didominasi prabayar.
+
+## 18. Belum dilakukan
+
+- [ ] Uji kepekaan: save rate, biaya, margin, ARPU; titik impas save rate (Step 15)
+- [ ] Segmentasi nilai × keterlibatan (pakai jumlah proteksi) dan jenis promo; cek lansia pada daftar target (Step 16)
+- [ ] Rancangan A/B test (Step 17)
+- [ ] Aplikasi Streamlit, README, video demo, dan keputusan file data yang boleh dipublikasikan beserta cek
+      lisensi dataset (Minggu 4)
