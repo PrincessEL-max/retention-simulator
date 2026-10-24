@@ -1,0 +1,7 @@
+matplotlib==3.11.2
+matplotlib-inline==0.2.2
+numpy==2.5.3
+pandas==3.0.6
+pandas-gbq==0.35.2
+pyarrow==25.0.1
+streamlit==1.65.0
