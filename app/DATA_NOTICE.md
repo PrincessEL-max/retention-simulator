@@ -1,0 +1,1 @@
+Data turunan dari IBM Telco Customer Churn (Apache 2.0) dan telah diubah. Lihat NOTICE di folder utama.

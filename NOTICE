@@ -1,0 +1,18 @@
+Retention Campaign Simulator
+Hak cipta kode proyek ini: 2026 Tafa
+
+Data: "Telco Customer Churn" (IBM Sample Data Sets), hak cipta IBM,
+dilisensikan di bawah Apache License 2.0.
+Sumber: https://github.com/IBM/telco-customer-churn-on-icp4d/blob/master/data/Telco-Customer-Churn.csv
+(diakses 24 Oktober 2026)
+
+Perubahan yang kami lakukan pada data: nilai uang diskalakan ke rupiah
+(rata-rata tagihan Rp 46.000); ID pelanggan diganti dan urutan baris diacak;
+kolom gender dan sebagian kolom lain tidak disertakan; ditambah skor peluang
+churn dari model buatan penulis.
+
+Proyek ini bukan produk IBM dan tidak didukung atau disahkan oleh IBM.
+
+   Pernyataan lisensi: README repo IBM telco-customer-churn-on-icp4d
+   ("This code pattern is licensed under the Apache Software License, Version 2"),
+   diakses 24 Oktober 2026.

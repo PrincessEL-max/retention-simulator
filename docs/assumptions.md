@@ -43,3 +43,5 @@
 ## 6. Changelog asumsi
 | Tanggal | Perubahan | Alasan |
 |7 Oktober 2026|Biaya Rp 15.000 gelondongan diganti kontak + insentif + take-up|Lebih realistis, komponen bisa diuji sensitivitasnya terpisah|
+
+Lisensi: sumber resmi repo IBM telco-customer-churn-on-icp4d (Apache 2.0, diakses 24 Oktober 2026); Kaggle hanya salinan. Data turunan minimal dipublikasikan dengan atribusi dan pernyataan perubahan (lihat NOTICE).
