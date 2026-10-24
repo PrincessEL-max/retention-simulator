@@ -7,3 +7,4 @@ data/*.parquet
 
 # Google service account credentials
 *service-account*.json
+!reports/test_results.json
